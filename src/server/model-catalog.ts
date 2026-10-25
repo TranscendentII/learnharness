@@ -20,6 +20,7 @@
 import { clampThinkingLevel, getSupportedThinkingLevels, type Api, type Model } from "@earendil-works/pi-ai";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { piModels } from "../agent/models.ts";
+import { LMSTUDIO_PROVIDER_ID } from "../agent/lmstudio-provider.ts";
 import { chatGPTConnected, chatGPTModel, chatGPTModels, refreshChatGPTModels } from "../agent/chatgpt-bridge.ts";
 import { NATIVE_SUBSCRIPTIONS } from "../core/contracts/subscriptions.ts";
 import { nativeSubscriptionId, nativeSubscriptionConnected, nativeSubscriptionModel, nativeSubscriptionModels, refreshSubscriptionModels } from "../agent/subscription-bridge.ts";
@@ -29,6 +30,14 @@ export async function refreshConnectionCatalog(provider?: string): Promise<void>
 		!provider || provider === "chatgpt" ? refreshChatGPTModels(piModels().getModels("openai").filter((m): m is Model<"openai-responses"> => m.api === "openai-responses")) : Promise.resolve(),
 		!provider || nativeSubscriptionId(provider) ? refreshSubscriptionModels() : Promise.resolve(),
 	]);
+}
+/** Refresh local models when the picker opens; an offline server is non-fatal. */
+export async function refreshLMStudioModelCatalog(): Promise<void> {
+	try {
+		await piModels().refresh({ providers: [LMSTUDIO_PROVIDER_ID], force: true });
+	} catch {
+		// LM Studio is optional and may not be running yet.
+	}
 }
 function connectionModel(provider: string, id: string): Model<Api> | undefined {
 	return provider === "chatgpt" ? chatGPTModel(id) : nativeSubscriptionId(provider) ? nativeSubscriptionModel(provider, id) : piModels().getModel(provider, id);
@@ -142,6 +151,8 @@ export function catalogProviders(): CatalogProvider[] {
 	})).concat([
 		{ id: "chatgpt", envVar: "", keyPresent: chatGPTConnected() },
 		...NATIVE_SUBSCRIPTIONS.map((p) => ({ id: p.logicalId, envVar: "", keyPresent: nativeSubscriptionConnected(p.providerId) })),
+		// Local LM Studio works without a key unless server authentication is enabled.
+		{ id: LMSTUDIO_PROVIDER_ID, envVar: "LMSTUDIO_API_KEY", keyPresent: true },
 	]).sort((a, b) => a.id.localeCompare(b.id));
 }
 

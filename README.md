@@ -52,6 +52,24 @@ Add your provider API key and choose your models, then start a session with what
 
 All three platforms support in-app updates.
 
+## Use local models with LM Studio
+
+LearnHarness can use a model served by LM Studio instead of a cloud provider:
+
+1. In LM Studio, download a chat/instruct model, load it, and start the server from the **Developer** tab. The default OpenAI-compatible URL is `http://127.0.0.1:1234/v1`.
+2. Start LearnHarness on the same computer as the LM Studio server.
+3. Open the model picker in LearnHarness. The **LM Studio** provider is refreshed from the running server\u2019s `/v1/models` endpoint; choose a model it exposes.
+
+The default endpoint needs no API key. For a custom endpoint or a server with authentication enabled, set these in `.env.local` before starting LearnHarness:
+
+```dotenv
+LMSTUDIO_BASE_URL=http://127.0.0.1:1234/v1
+# Only required if API-token authentication is enabled in LM Studio:
+# LMSTUDIO_API_KEY=your-local-server-token
+```
+
+In a web deployment, the URL is resolved from the LearnHarness server, not the user\u2019s browser. Optional web research and dictation still use their own external services.
+
 ## Your keys, your data
 
 - **Your keys and models.** No LearnHarness subscription or markup. You pay your providers for usage; a live cost meter shows model costs.

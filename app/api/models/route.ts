@@ -1,4 +1,4 @@
-import { modelCatalog, refreshConnectionCatalog } from "@/src/server";
+import { modelCatalog, refreshConnectionCatalog, refreshLMStudioModelCatalog } from "@/src/server";
 
 /**
  * The model picker's data (model-control wave): pi-ai's configured-provider
@@ -8,5 +8,6 @@ import { modelCatalog, refreshConnectionCatalog } from "@/src/server";
  */
 export async function GET() {
 	await refreshConnectionCatalog();
+	await refreshLMStudioModelCatalog();
 	return Response.json(modelCatalog(), { headers: { "Cache-Control": "no-store" } });
 }

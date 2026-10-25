@@ -40,7 +40,9 @@ Secrets and machine-specific paths only. Model choice and thinking budgets are t
 
 | Variable | Purpose |
 |---|---|
-| `OPENROUTER_API_KEY` | required — all LLM calls go through OpenRouter |
+| `OPENROUTER_API_KEY` | optional — enables OpenRouter as a model provider |
+| `LMSTUDIO_BASE_URL` | optional — LM Studio OpenAI-compatible API URL; default `http://127.0.0.1:1234/v1` |
+| `LMSTUDIO_API_KEY` | optional — only when LM Studio server authentication is enabled |
 | `GOOGLE_SEARCH_API_KEY` + `GOOGLE_CSE_ID` | researcher's `web_search` (Google Custom Search) |
 | `DEEPGRAM_API_KEY` | optional — dictation (STT token minting; audio streams browser→Deepgram, never through the server) |
 | `CHROME_PATH` | optional system Chrome fallback for demo verification; the app's own browser helper is primary (nothing is downloaded) |

@@ -15,6 +15,7 @@ import packageMetadata from "../../package.json" with { type: "json" };
 import { chatGPTModel } from "./chatgpt-bridge.ts";
 import { chatGPTStream } from "./chatgpt-stream.ts";
 import type { ChatGPTDispatchLifecycle } from "./chatgpt-request-cycle.ts";
+import { createLmStudioProvider, LMSTUDIO_PROVIDER_ID, lmStudioModelForId } from "./lmstudio-provider.ts";
 import { nativeSubscriptionId, nativeSubscriptionModel } from "./subscription-bridge.ts";
 import { nativeSubscriptionStream } from "./subscription-stream.ts";
 
@@ -62,6 +63,8 @@ export function piModels() {
 	if (!collection) {
 		collection = createModels({ identity: APP_IDENTITY });
 		for (const provider of builtinProviders()) collection.setProvider(provider);
+		// LM Studio is a local, keyless-by-default OpenAI-compatible provider.
+		collection.setProvider(createLmStudioProvider());
 	}
 	return collection;
 }
@@ -101,7 +104,11 @@ function defaultThinkingLevel(model: Model<Api>): ThinkingLevel {
 export function piEngineForSpec(spec: ResolvedModelSpec, background: boolean | (() => boolean) = true, lifecycle?: ChatGPTDispatchLifecycle): PiEngine {
 	const models: Models = piModels();
 	const nativeId = nativeSubscriptionId(spec.provider);
-	const model = spec.provider === "chatgpt" ? chatGPTModel(spec.id) : nativeId ? nativeSubscriptionModel(spec.provider, spec.id) : models.getModel(spec.provider, spec.id);
+	const model = spec.provider === "chatgpt"
+		? chatGPTModel(spec.id)
+		: nativeId
+			? nativeSubscriptionModel(spec.provider, spec.id)
+			: models.getModel(spec.provider, spec.id) ?? (spec.provider === LMSTUDIO_PROVIDER_ID ? lmStudioModelForId(spec.id) : undefined);
 	if (!model) {
 		throw new Error(`${spec.provider} catalog has no model ${spec.id}`);
 	}
