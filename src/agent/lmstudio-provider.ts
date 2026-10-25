@@ -65,7 +65,7 @@ export function lmStudioModelFromInfo(
 	const supportsVision = capabilities.some((capability) => /vision|image/i.test(capability));
 	const supportsReasoning =
 		capabilities.some((capability) => /reasoning|thinking/i.test(capability)) ||
-		/(deepseek-r1|\\bqwq\\b|reasoner|thinking)/i.test(id);
+		/(deepseek-r1|\bqwq\b|reasoner|thinking)/i.test(id);
 	return {
 		id,
 		name,
