@@ -2,13 +2,14 @@
  * LM Studio's OpenAI-compatible local server.
  *
  * Keyless by default. Set LMSTUDIO_API_KEY only when server authentication
- * is enabled in LM Studio. The default URL is the usual local endpoint.
+ * is enabled in LM Studio. The default matches the port used by this setup;
+ * override LMSTUDIO_BASE_URL if your LM Studio server uses another port.
  */
 import { createProvider, type Model } from "@earendil-works/pi-ai";
 import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
 
 export const LMSTUDIO_PROVIDER_ID = "lmstudio";
-export const LMSTUDIO_DEFAULT_BASE_URL = "http://127.0.0.1:1234/v1";
+export const LMSTUDIO_DEFAULT_BASE_URL = "http://127.0.0.1:1235/v1";
 
 type ModelRecord = Record<string, unknown>;
 
