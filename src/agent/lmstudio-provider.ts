@@ -45,6 +45,36 @@ function positiveInteger(value: unknown, fallback: number): number {
 	return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
 }
 
+function lmStudioThinkingLevelMap(info: ModelRecord): Model<"openai-completions">["thinkingLevelMap"] {
+	const capabilities = asRecord(info.capabilities);
+	const reasoning = asRecord(info.reasoning) ?? asRecord(capabilities?.reasoning);
+	const allowedOptions = Array.isArray(reasoning?.allowed_options)
+		? reasoning.allowed_options.filter((item): item is string => typeof item === "string").map((item) => item.toLowerCase())
+		: [];
+	if (allowedOptions.length === 0) return undefined;
+
+	// LM Studio accepts "on" for a reasoning toggle and low/medium/high for
+	// models with adjustable effort. Pi's level map lets both use the same UI.
+	const map: NonNullable<Model<"openai-completions">["thinkingLevelMap"]> = {
+		off: allowedOptions.includes("off") ? "none" : null,
+		minimal: null,
+		low: null,
+		medium: null,
+		high: null,
+		xhigh: null,
+		max: null,
+	};
+	for (const level of ["low", "medium", "high"] as const) {
+		if (allowedOptions.includes(level)) map[level] = level;
+	}
+	if (allowedOptions.includes("on")) {
+		// The settings API calls this "on", but Chat Completions accepts an
+		// effort value. Use minimal effort for the enabled toggle.
+		map.minimal = "minimal";
+	}
+	return map;
+}
+
 export function lmStudioModelFromInfo(
 	info: ModelRecord,
 	baseUrl = lmStudioBaseUrl(),
@@ -52,10 +82,12 @@ export function lmStudioModelFromInfo(
 	const id = typeof info.id === "string" ? info.id.trim() : "";
 	if (!id) return undefined;
 	const type = typeof info.type === "string" ? info.type.toLowerCase() : "";
-	if (type && type !== "llm" && type !== "model") return undefined;
+	if (type && type !== "llm" && type !== "model" && type !== "vlm") return undefined;
 	const capabilities = Array.isArray(info.capabilities)
 		? info.capabilities.filter((item): item is string => typeof item === "string")
 		: [];
+	const capabilityRecord = asRecord(info.capabilities);
+	const thinkingLevelMap = lmStudioThinkingLevelMap(info);
 	const contextWindow = positiveInteger(info.max_context_length ?? info.context_length, 32768);
 	const maxTokens = Math.min(
 		positiveInteger(info.max_output_tokens, Math.min(contextWindow, 8192)),
@@ -63,9 +95,9 @@ export function lmStudioModelFromInfo(
 	);
 	const displayName = info.display_name ?? info.name;
 	const name = typeof displayName === "string" && displayName.trim() ? displayName.trim() : id;
-	const supportsVision = capabilities.some((capability) => /vision|image/i.test(capability));
+	const supportsVision = type === "vlm" || capabilityRecord?.vision === true || capabilities.some((capability) => /vision|image/i.test(capability));
 	const supportsReasoning =
-		capabilities.some((capability) => /reasoning|thinking/i.test(capability)) ||
+		!!thinkingLevelMap || capabilityRecord?.reasoning === true || capabilities.some((capability) => /reasoning|thinking/i.test(capability)) ||
 		/(deepseek-r1|\bqwq\b|reasoner|thinking)/i.test(id);
 	return {
 		id,
@@ -74,6 +106,7 @@ export function lmStudioModelFromInfo(
 		provider: LMSTUDIO_PROVIDER_ID,
 		baseUrl,
 		reasoning: supportsReasoning,
+		...(thinkingLevelMap ? { thinkingLevelMap } : {}),
 		input: supportsVision ? ["text", "image"] : ["text"],
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 		contextWindow,
@@ -100,7 +133,7 @@ export function createLmStudioProvider() {
 				name: "LM Studio",
 				resolve: async () => {
 					const apiKey = process.env.LMSTUDIO_API_KEY?.trim();
-					return { auth: apiKey ? { apiKey } : {} };
+					return { auth: { apiKey: apiKey || "lm-studio" } };
 				},
 			},
 		},
@@ -118,10 +151,22 @@ export function createLmStudioProvider() {
 			if (available.length === 0) return [];
 			const metadata = new Map<string, ModelRecord>();
 			try {
+				const modelSettingsResponse = await fetch(endpointUrl(baseUrl, "/api/v1/models"), { headers, signal });
+				if (modelSettingsResponse.ok) {
+					for (const info of recordsFrom(await modelSettingsResponse.json())) {
+						const id = typeof info.id === "string" ? info.id : typeof info.key === "string" ? info.key : "";
+						if (id) metadata.set(id, info);
+					}
+				}
+			} catch (error) {
+				if (signal.aborted) throw error;
+			}
+			try {
 				const detailsResponse = await fetch(endpointUrl(baseUrl, "/api/v0/models"), { headers, signal });
 				if (detailsResponse.ok) {
 					for (const info of recordsFrom(await detailsResponse.json())) {
-						if (typeof info.id === "string") metadata.set(info.id, info);
+						const id = typeof info.id === "string" ? info.id : typeof info.key === "string" ? info.key : "";
+						if (id) metadata.set(id, { ...info, ...(metadata.get(id) ?? {}) });
 					}
 				}
 			} catch (error) {
